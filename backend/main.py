@@ -26,11 +26,14 @@ from engine.xml_surgery import strip_locks
 load_dotenv()
 
 # ── config ────────────────────────────────────────────────────────────────────
-SUPABASE_URL          = os.environ.get("SUPABASE_URL","").strip()
-SUPABASE_SERVICE_KEY  = os.environ.get("SUPABASE_SERVICE_KEY","").strip()
-STRIPE_SECRET_KEY     = os.environ.get("STRIPE_SECRET_KEY","")
-STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET","")
-ALLOWED_ORIGIN        = os.environ.get("ALLOWED_ORIGIN", "http://localhost:3000")
+def _env(key: str, default: str = "") -> str:
+    return os.environ.get(key, default).strip().strip("\"'")
+
+SUPABASE_URL          = _env("SUPABASE_URL")
+SUPABASE_SERVICE_KEY  = _env("SUPABASE_SERVICE_KEY")
+STRIPE_SECRET_KEY     = _env("STRIPE_SECRET_KEY")
+STRIPE_WEBHOOK_SECRET = _env("STRIPE_WEBHOOK_SECRET")
+ALLOWED_ORIGIN        = _env("ALLOWED_ORIGIN", "http://localhost:3000")
 
 _MAX_BYTES        = 100 * 1024 * 1024   # 100 MB
 _PPTX_MAGIC       = b"PK\x03\x04"
