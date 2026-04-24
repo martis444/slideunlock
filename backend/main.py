@@ -26,8 +26,8 @@ from engine.xml_surgery import strip_locks
 load_dotenv()
 
 # ── config ────────────────────────────────────────────────────────────────────
-SUPABASE_URL          = os.environ.get("SUPABASE_URL", "")
-SUPABASE_SERVICE_KEY  = os.environ.get("SUPABASE_SERVICE_KEY", "")
+SUPABASE_URL          = os.environ.get("SUPABASE_URL", "").strip()
+SUPABASE_SERVICE_KEY  = os.environ.get("SUPABASE_SERVICE_KEY", "").strip()
 STRIPE_SECRET_KEY     = os.environ.get("STRIPE_SECRET_KEY", "")
 STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
 ALLOWED_ORIGIN        = os.environ.get("ALLOWED_ORIGIN", "http://localhost:3000")
