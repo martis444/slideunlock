@@ -49,7 +49,10 @@ log = logging.getLogger(__name__)
 # ── Supabase client ───────────────────────────────────────────────────────────
 _sb: Optional[Client] = None
 if SUPABASE_URL and SUPABASE_SERVICE_KEY:
-    _sb = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+    try:
+        _sb = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+    except Exception as e:
+        log.error("Supabase init failed — %s | URL=%r", e, SUPABASE_URL)
 
 # ── Stripe ────────────────────────────────────────────────────────────────────
 if STRIPE_SECRET_KEY:
