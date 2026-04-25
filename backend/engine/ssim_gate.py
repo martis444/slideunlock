@@ -193,74 +193,9 @@ def verify_and_nudge(
         def _ssim_after_nudge() -> float:
             return compute_ssim(original_slide_image, _render())
 
-        # ── initial render ────────────────────────────────────────────────────
+        # ── single render + check (nudge rounds skipped for performance) ─────
         initial_png = render_slide_to_png(rebuilt_pptx_path, slide_index, tmp_dir)
         score = compute_ssim(original_slide_image, initial_png)
-        if score >= ssim_threshold:
-            return (True, score, "done")
-
-        # ── Round 1: cx nudge on mixed-font text boxes ────────────────────────
-        mixed_font_specs = [
-            s for s in specs
-            if "text_runs" in s
-            and len({
-                r["font_name"]
-                for r in s["text_runs"]
-                if not r.get("paragraph_break") and "font_name" in r
-            }) > 1
-        ]
-        for spec in mixed_font_specs[:5]:
-            for delta in (+914, -914, +1828, -1828):
-                spec["cx"] += delta
-                new_score = _ssim_after_nudge()
-                if new_score > score:
-                    score = new_score
-                    break
-                spec["cx"] -= delta   # revert
-            if score >= ssim_threshold:
-                return (True, score, "done")
-
-        # ── Round 2: best single x/y nudge across all shapes ─────────────────
-        best_delta: tuple | None = None
-        best_score = score
-        for spec in specs:
-            for axis in ("x", "y"):
-                for delta in (+914, -914):
-                    spec[axis] += delta
-                    new_score = _ssim_after_nudge()
-                    if new_score - score >= 0.001 and new_score > best_score:
-                        best_score = new_score
-                        best_delta = (spec["id"], axis, delta)
-                    spec[axis] -= delta   # always revert during search
-
-        if best_delta:
-            sid, axis, delta = best_delta
-            target = next(s for s in specs if s["id"] == sid)
-            target[axis] += delta
-            score = best_score
-
-        if score >= ssim_threshold:
-            return (True, score, "done")
-
-        # ── Round 3: cy nudge on 3 tallest text boxes ─────────────────────────
-        text_specs = sorted(
-            [s for s in specs if "text_runs" in s],
-            key=lambda s: s["cy"],
-            reverse=True,
-        )[:3]
-        for spec in text_specs:
-            for delta in (+914, -914):
-                spec["cy"] += delta
-                new_score = _ssim_after_nudge()
-                if new_score > score:
-                    score = new_score
-                    break
-                spec["cy"] -= delta
-
-        # ── final render ──────────────────────────────────────────────────────
-        final_png = render_slide_to_png(rebuilt_pptx_path, slide_index, tmp_dir)
-        score = compute_ssim(original_slide_image, final_png)
-
         if score >= ssim_threshold:
             return (True, score, "done")
 
