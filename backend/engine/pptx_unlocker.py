@@ -1,3 +1,4 @@
+import logging
 import shutil
 import tempfile
 import time
@@ -11,6 +12,14 @@ from .ai_reconstructor import reconstruct
 from .shape_builder import build_slide
 from .ssim_gate import verify_and_nudge
 from .repacker import repack
+
+log = logging.getLogger(__name__)
+
+
+def _clear_slide_shapes(sp_tree) -> None:
+    """Remove all shape children from spTree, keeping the two fixed headers."""
+    for child in list(sp_tree)[2:]:
+        sp_tree.remove(child)
 
 
 def unlock(
@@ -86,12 +95,15 @@ def unlock(
                 style_ctx["slide_cy_emu"],
             )
             if not specs:
+                log.warning("Slide %d: AI returned no shapes — leaving original image", report["slide_num"])
                 slide_results.append(
                     {**report, "reconstruction_status": "fallback_png", "ssim_score": None}
                 )
                 continue
 
             # Phase 5: Build shapes into slide
+            log.info("Slide %d: AI returned %d shapes — rebuilding", report["slide_num"], len(specs))
+            _clear_slide_shapes(slide.shapes._spTree)
             build_slide(
                 slide,
                 specs,

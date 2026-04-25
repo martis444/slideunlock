@@ -258,6 +258,18 @@ async def _run_unlock_job(
                 for s in result["slides"]
                 if s.get("ssim_score") is not None
             }
+            ai_shapes_total = sum(
+                1 for s in result["slides"]
+                if s.get("reconstruction_status") == "done"
+            )
+            slide_statuses = [
+                {"slide_num": s["slide_num"], "status": s.get("reconstruction_status")}
+                for s in result["slides"]
+            ]
+            log.info(
+                "Job %s — slides=%d, ai_done=%d, statuses=%s",
+                job_id, len(result["slides"]), ai_shapes_total, slide_statuses,
+            )
 
             output_file_url: Optional[str] = None
             if _sb:
