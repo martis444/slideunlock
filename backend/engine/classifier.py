@@ -55,9 +55,12 @@ def _graphicdata_uri(frame: etree._Element) -> str:
     return gd.get("uri", "") if gd is not None else ""
 
 
-def _is_title_ph(sp: etree._Element) -> bool:
+_DECORATIVE_PH_TYPES = frozenset(["title", "sldNum", "dt", "ftr", "hdr"])
+
+def _is_decorative_ph(sp: etree._Element) -> bool:
+    """True for placeholders that carry no user content (title, slide#, date, footer)."""
     ph = sp.find(f".//{{{_P}}}ph")
-    return ph is not None and ph.get("type") == "title"
+    return ph is not None and ph.get("type", "body") in _DECORATIVE_PH_TYPES
 
 
 def _has_dgm_relids(elem: etree._Element) -> bool:
@@ -174,7 +177,7 @@ def classify_slide(
 
     sp_ok = (
         len(native_sps) == 0
-        or (len(native_sps) == 1 and _is_title_ph(native_sps[0]))
+        or all(_is_decorative_ph(sp) for sp in native_sps)
     )
     pic_ok = len(image_pics) == 1
 
