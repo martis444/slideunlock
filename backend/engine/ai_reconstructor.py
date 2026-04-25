@@ -82,6 +82,14 @@ def _build_system_prompt(style_ctx: dict, slide_cx: int, slide_cy: int) -> str:
         f'  "y"     NOT "box_y" / "pos_y" / "top"\n'
         f'  "cx"    NOT "width" / "box_width" / "w"\n'
         f'  "cy"    NOT "height" / "box_height" / "h"\n\n'
+        f"ARCHITECTURE DIAGRAM RULES (for slides with boxes, arrows, tables):\n"
+        f"- Section headers (colored bands/rows spanning full width): use rectangle with fill + textbox on top\n"
+        f"- Every labeled box in the diagram MUST have its own rectangle + textbox — do not merge\n"
+        f"- Arrows between boxes: use connector type='connector', with start_x/start_y/end_x/end_y at box edges\n"
+        f"- Table cells: model each cell as a rectangle with border + textbox for content\n"
+        f"- Column/row headers: bold text, matching header fill color\n"
+        f"- Icon placeholders (gear, cloud, portal): use oval or rounded_rect with matching fill — skip SVG detail\n"
+        f"- DO NOT skip any labeled box, arrow, or text block — completeness is critical\n\n"
         f"EXAMPLE OBJECT (copy structure exactly, change only values):\n"
         '{{"id":100,"type":"textbox","z_order":0,"x":457200,"y":274638,'
         '"cx":3200400,"cy":685800,"rot":0,'
@@ -103,14 +111,17 @@ def _build_system_prompt(style_ctx: dict, slide_cx: int, slide_cy: int) -> str:
 
 _USER_PROMPT = (
     "Reconstruct this slide as a JSON array of ShapeSpec objects. "
-    "Cover every visible text block, shape, line, and graphical element. "
-    "Use the slide dimensions, fonts, and colors provided in the system prompt."
+    "Cover EVERY visible element: text blocks, colored boxes, section headers, "
+    "connecting arrows, table cells, labels, footnotes, and logos. "
+    "For architecture diagrams: model each distinct box and its label separately. "
+    "Use the slide dimensions, fonts, and colors provided in the system prompt. "
+    "Be exhaustive — missing elements cannot be recovered."
 )
 
 
 # ── image preprocessing ───────────────────────────────────────────────────────
 
-_MAX_UPSCALE_WIDTH = 2048   # cap to avoid ballooning API inference time
+_MAX_UPSCALE_WIDTH = 3072   # higher cap for dense architecture diagrams with small text
 
 
 def _preprocess_image(image_bytes: bytes) -> bytes:
