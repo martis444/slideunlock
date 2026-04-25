@@ -585,20 +585,24 @@ export default function AppPage() {
         setJobStatus(data);
 
         if (data.status === "done" || data.status === "failed") {
+          active = false;
           setUnlocking(false);
           if (uploadedFile && analysis) {
-            setHistory((prev) => [
-              {
-                id: jobId,
-                filename: uploadedFile.name,
-                slides: analysis.total_slides,
-                status: data.status as "done" | "failed",
-                ssim_scores: data.ssim_scores,
-                date: new Date(),
-                download_url: data.download_url,
-              },
-              ...prev,
-            ]);
+            setHistory((prev) => {
+              if (prev.some((e) => e.id === jobId)) return prev;
+              return [
+                {
+                  id: jobId,
+                  filename: uploadedFile.name,
+                  slides: analysis.total_slides,
+                  status: data.status as "done" | "failed",
+                  ssim_scores: data.ssim_scores,
+                  date: new Date(),
+                  download_url: data.download_url,
+                },
+                ...prev,
+              ];
+            });
           }
         }
       } catch {
