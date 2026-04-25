@@ -8,7 +8,7 @@ from .harvester import harvest
 from .xml_surgery import strip_locks
 from .ungrouper import flatten_groups
 from .classifier import classify_all
-from .ai_reconstructor import reconstruct
+from .ai_reconstructor import reconstruct, reconstruct_regions
 from .shape_builder import build_slide
 from .ssim_gate import verify_and_nudge
 from .repacker import repack
@@ -17,10 +17,14 @@ log = logging.getLogger(__name__)
 
 
 def _remove_slide_images(sp_tree) -> None:
-    """Remove only p:pic elements from spTree, preserving existing text/shape overlays."""
+    """Remove p:pic elements and content-placeholder shapes that hold a blip fill."""
     _P_NS = "http://schemas.openxmlformats.org/presentationml/2006/main"
+    _A_NS = "http://schemas.openxmlformats.org/drawingml/2006/main"
     for pic in list(sp_tree.findall(f"{{{_P_NS}}}pic")):
         sp_tree.remove(pic)
+    for sp in list(sp_tree.findall(f"{{{_P_NS}}}sp")):
+        if sp.find(f".//{{{_P_NS}}}ph") is not None and sp.find(f".//{{{_A_NS}}}blipFill") is not None:
+            sp_tree.remove(sp)
 
 
 def unlock(
@@ -96,7 +100,16 @@ def unlock(
                 style_ctx["slide_cy_emu"],
             )
             if not specs:
-                log.warning("Slide %d: AI returned no shapes — leaving original image", report["slide_num"])
+                log.info("Slide %d: single-shot returned 0 shapes — trying region split", report["slide_num"])
+                specs = reconstruct_regions(
+                    img_bytes,
+                    style_ctx,
+                    style_ctx["slide_cx_emu"],
+                    style_ctx["slide_cy_emu"],
+                )
+
+            if not specs:
+                log.warning("Slide %d: region split also returned 0 — leaving original image", report["slide_num"])
                 slide_results.append(
                     {**report, "reconstruction_status": "fallback_png", "ssim_score": None}
                 )

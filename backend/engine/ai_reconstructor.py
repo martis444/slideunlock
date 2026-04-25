@@ -4,6 +4,7 @@ import json
 import logging
 import os
 import re
+import tempfile
 import time
 from io import BytesIO
 
@@ -304,7 +305,6 @@ def reconstruct(
     slide_cy: int,
 ) -> list:
     """Backward-compat wrapper for pptx_unlocker.py (accepts bytes, not path)."""
-    import tempfile
     with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
         tmp.write(image_bytes)
         tmp_path = tmp.name
@@ -312,3 +312,88 @@ def reconstruct(
         return reconstruct_slide(tmp_path, style_ctx, slide_cx, slide_cy)
     finally:
         os.unlink(tmp_path)
+
+
+_DEDUP_THRESHOLD_EMU = 200_000   # ~0.22 inch
+
+
+def _dedup_shapes(shapes: list[dict], boundary_x: int, threshold: int) -> list[dict]:
+    """Remove shapes near the split boundary that are duplicated across regions."""
+    def center(s):
+        return s.get("x", 0) + s.get("cx", 0) // 2, s.get("y", 0) + s.get("cy", 0) // 2
+
+    kept = list(shapes)
+    to_remove: set[int] = set()
+
+    for i in range(len(kept)):
+        for j in range(i + 1, len(kept)):
+            if i in to_remove or j in to_remove:
+                continue
+            cx_i, cy_i = center(kept[i])
+            cx_j, cy_j = center(kept[j])
+            if abs(cx_i - cx_j) < threshold and abs(cy_i - cy_j) < threshold:
+                dist_i = abs(cx_i - boundary_x)
+                dist_j = abs(cx_j - boundary_x)
+                to_remove.add(j if dist_i >= dist_j else i)
+
+    return [s for k, s in enumerate(kept) if k not in to_remove]
+
+
+def reconstruct_regions(
+    image_bytes: bytes,
+    style_ctx: dict,
+    slide_cx: int,
+    slide_cy: int,
+) -> list:
+    """
+    Fallback for dense slides: split into left/right halves, reconstruct each,
+    adjust x coordinates, deduplicate near-boundary shapes, and merge.
+    """
+    img = Image.open(BytesIO(image_bytes))
+    w, h = img.size
+    mid_px = w // 2
+    left_cx  = slide_cx // 2
+    right_cx = slide_cx - left_cx
+
+    regions = [
+        (img.crop((0,      0, mid_px, h)), left_cx,  0),
+        (img.crop((mid_px, 0, w,      h)), right_cx, left_cx),
+    ]
+
+    all_shapes: list[dict] = []
+    for region_img, rgn_cx, x_off in regions:
+        buf = BytesIO()
+        region_img.save(buf, format="PNG")
+        with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
+            tmp.write(buf.getvalue())
+            tmp_path = tmp.name
+        try:
+            shapes = reconstruct_slide(tmp_path, style_ctx, rgn_cx, slide_cy)
+        finally:
+            os.unlink(tmp_path)
+
+        for s in shapes:
+            s = dict(s)
+            s["x"] = s.get("x", 0) + x_off
+            for key in ("start_x", "end_x"):
+                if key in s:
+                    s[key] = s[key] + x_off
+            all_shapes.append(s)
+
+    if all_shapes:
+        all_shapes = _dedup_shapes(all_shapes, left_cx, _DEDUP_THRESHOLD_EMU)
+
+    id_map: dict[int, int] = {}
+    for i, s in enumerate(all_shapes):
+        old = s.get("id", i + 100)
+        new = 100 + i
+        id_map[old] = new
+        s["id"] = new
+    for s in all_shapes:
+        if s.get("type") == "connector":
+            for key in ("start_shape_id", "end_shape_id"):
+                if s.get(key) is not None:
+                    s[key] = id_map.get(s[key], s[key])
+
+    log.info("reconstruct_regions: merged %d shapes from 2 regions", len(all_shapes))
+    return all_shapes
