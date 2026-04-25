@@ -14,7 +14,7 @@ from PIL import Image
 
 log = logging.getLogger(__name__)
 
-MODELS = ["gemini-2.5-flash-preview-04-17", "gemini-2.0-flash", "gemini-1.5-pro"]
+MODELS = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
 _REQUEST_TIMEOUT = 200      # seconds per attempt; complex slides need 80-120s on preview models
 _RETRY_DELAYS    = [2, 4]   # sleep before retry-1 and retry-2 of the same model
 _MAX_OUTPUT_TOKENS = 32768  # complex slides easily exceed 8k tokens of JSON output
