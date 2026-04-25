@@ -450,7 +450,7 @@ export default function AppPage() {
   // auth
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
-  const isPro = false; // TODO: read from users table once Supabase is wired
+  const isPro = true; // TODO: read from users table once Supabase is wired
 
   // mode
   const [localMode, setLocalMode] = useState(false);
