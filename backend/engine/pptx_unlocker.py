@@ -16,10 +16,11 @@ from .repacker import repack
 log = logging.getLogger(__name__)
 
 
-def _clear_slide_shapes(sp_tree) -> None:
-    """Remove all shape children from spTree, keeping the two fixed headers."""
-    for child in list(sp_tree)[2:]:
-        sp_tree.remove(child)
+def _remove_slide_images(sp_tree) -> None:
+    """Remove only p:pic elements from spTree, preserving existing text/shape overlays."""
+    _P_NS = "http://schemas.openxmlformats.org/presentationml/2006/main"
+    for pic in list(sp_tree.findall(f"{{{_P_NS}}}pic")):
+        sp_tree.remove(pic)
 
 
 def unlock(
@@ -103,7 +104,7 @@ def unlock(
 
             # Phase 5: Build shapes into slide
             log.info("Slide %d: AI returned %d shapes — rebuilding", report["slide_num"], len(specs))
-            _clear_slide_shapes(slide.shapes._spTree)
+            _remove_slide_images(slide.shapes._spTree)
             build_slide(
                 slide,
                 specs,

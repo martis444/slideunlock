@@ -175,18 +175,12 @@ def classify_slide(
     flat_image_rId       = None
     flat_image_media_path = None
 
-    sp_ok = (
-        len(native_sps) == 0
-        or all(_is_decorative_ph(sp) for sp in native_sps)
-    )
-    pic_ok = len(image_pics) == 1
-
-    if sp_ok and pic_ok:
+    if len(image_pics) == 1:
         the_pic = image_pics[0]
         pcx, pcy = _pic_ext(the_pic)
         if pcx > 0 and pcy > 0:
             coverage = (pcx * pcy) / (slide_cx * slide_cy)
-            if coverage >= 0.80:
+            if coverage >= 0.60:
                 is_flat_image  = True
                 flat_image_rId = _pic_rid(the_pic)
                 if flat_image_rId and flat_image_rId in rels:
